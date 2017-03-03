@@ -5,8 +5,25 @@
   "main": "index.js",
   "author": "shij",
   "license": "MIT",
+  "keywords": [
+    "ftp",
+    "output",
+    "webpack",
+    "plugin"
+  ],
   "dependencies": {
     "ftp": "^0.3.10",
     "path.join": "^1.0.0"
+  },
+  "peerDependencies": {
+    "webpack": "1 || ^2 || ^2.1.0-beta || ^2.2.0-rc"
+  },
+  "homepage": "https://github.com/silenaker/ftp-output-webpack-plugin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/silenaker/ftp-output-webpack-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/silenaker/ftp-output-webpack-plugin/issues"
   }
 }
