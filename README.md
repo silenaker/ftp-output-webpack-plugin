@@ -1,4 +1,4 @@
-# install
+# Install
 
 ```
 npm install ftp-output-webpack-plugin --save-dev
@@ -13,7 +13,7 @@ the plugin is based on [node-ftp](https://github.com/mscdex/node-ftp) and receiv
 then you can do like this in `webpack.config.js`
 
 ```javascript
-const const FtpOutputPlugin = require('ftp-output-webpack-plugin')
+const FtpOutputPlugin = require('ftp-output-webpack-plugin')
 
 module.exports = {
   output: {
