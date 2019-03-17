@@ -1,13 +1,13 @@
-const FtpOutputFileSystem = require('./FtpOutputFileSystem')
+const SftpOutputFileSystem = require('./SftpOutputFileSystem')
 
-function FtpOutputPlugin(options) {
+function SftpOutputPlugin(options) {
   this.options = options
 }
 
-FtpOutputPlugin.prototype.apply = function (compiler) {
+SftpOutputPlugin.prototype.apply = function (compiler) {
   compiler.plugin('environment', () => {
-    compiler.outputFileSystem = new FtpOutputFileSystem(this.options)
+    compiler.outputFileSystem = new SftpOutputFileSystem(this.options)
   })
 }
 
-module.exports = FtpOutputPlugin
+module.exports = SftpOutputPlugin
