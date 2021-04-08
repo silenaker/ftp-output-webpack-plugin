@@ -1,46 +1,97 @@
-const pathJoin = require('path.join')
-const Client = require('ssh2-sftp-client')
+const path = require("path");
+const pathJoin = require("path.join");
+const Client = require("ssh2-sftp-client");
 
-function SftpOutputFileSystem(options) {
-  this.options = options
-  this.client = new Client()
-  this.connection = this.client.connect(options)
+function SftpOutputFileSystem(options, compiler) {
+  this.options = options;
+  this.localOutputPath = compiler.options.output.path;
+  this.localOutputFileSystem = compiler.outputFileSystem;
+  this.client = new Client();
+  this.client.connect(options);
+  this.client.on("error", (err) => console.log(err));
 }
 
-function ensureConnected(fn) {
-  return function() {
-    const args = [].slice.call(arguments, 0, arguments.length - 1)
-    const callback = arguments[arguments.length - 1]
-    this.connection
-      .then(() => fn.apply(this, args))
-      .then(() => callback())
-      .catch(err => callback(err))
+SftpOutputFileSystem.prototype.relative = function (p) {
+  return path.relative(this.localOutputPath, p).replace(/\\/g, "/") || ".";
+};
+
+SftpOutputFileSystem.prototype.getFtpOutputPath = function (p) {
+  return pathJoin(this.options.path, this.relative(p));
+};
+
+SftpOutputFileSystem.prototype.mkdirp = function (path, callback) {
+  if (!this.options._useLocalPath) {
+    this.localOutputFileSystem.mkdirp(path, (err) => err && console.error(err));
   }
-}
 
-SftpOutputFileSystem.prototype.mkdirp = ensureConnected(function(path) {
-  return this.client.mkdir(path, true)
-})
+  this.client
+    .mkdir(this.getFtpOutputPath(path), true)
+    .then(() => callback())
+    .catch((err) => callback(err));
+};
 
-SftpOutputFileSystem.prototype.mkdir = ensureConnected(function(path) {
-  return this.client.mkdir(path, false)
-})
+SftpOutputFileSystem.prototype.mkdir = function (path, callback) {
+  if (!this.options._useLocalPath) {
+    this.localOutputFileSystem.mkdir(path, (err) => err && console.error(err));
+  }
 
-SftpOutputFileSystem.prototype.rmdir = ensureConnected(function(path) {
-  return this.client.rmdir(path, false)
-})
+  this.client
+    .mkdir(this.getFtpOutputPath(path), false)
+    .then(() => callback())
+    .catch((err) => callback(err));
+};
 
-SftpOutputFileSystem.prototype.unlink = ensureConnected(function(path) {
-  return this.client.delete(path)
-})
+SftpOutputFileSystem.prototype.rmdir = function (path, callback) {
+  if (!this.options._useLocalPath) {
+    this.localOutputFileSystem.rmdir(path, (err) => err && console.error(err));
+  }
 
-SftpOutputFileSystem.prototype.writeFile = ensureConnected(function(file, data) {
+  this.client
+    .rmdir(this.getFtpOutputPath(path), false)
+    .then(() => callback())
+    .catch((err) => callback(err));
+};
+
+SftpOutputFileSystem.prototype.unlink = function (path, callback) {
+  if (!this.options._useLocalPath) {
+    this.localOutputFileSystem.unlink(path, (err) => err && console.error(err));
+  }
+
+  this.client
+    .delete(this.getFtpOutputPath(path))
+    .then(() => callback())
+    .catch((err) => callback(err));
+};
+
+SftpOutputFileSystem.prototype.writeFile = ensureConnected(function (
+  file,
+  data,
+  options,
+  callback
+) {
+  if (typeof options === "function") {
+    callback = options;
+    options = {};
+  }
   if (!Buffer.isBuffer(data)) {
-    data = new Buffer(data, 'utf8')
+    data = new Buffer(data, "utf8");
   }
-  return this.client.put(data, file)
-})
 
-SftpOutputFileSystem.prototype.join = pathJoin
+  if (!this.options._useLocalPath) {
+    this.localOutputFileSystem.writeFile(
+      file,
+      data,
+      options,
+      (err) => err && console.error(err)
+    );
+  }
 
-module.exports = SftpOutputFileSystem
+  this.client
+    .put(data, this.getFtpOutputPath(file))
+    .then(() => callback())
+    .catch((err) => callback(err));
+});
+
+SftpOutputFileSystem.prototype.join = pathJoin;
+
+module.exports = SftpOutputFileSystem;

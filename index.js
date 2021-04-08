@@ -1,35 +1,73 @@
-const SftpOutputFileSystem = require('./SftpOutputFileSystem')
-const url = require('url')
+const url = require("url");
+const FtpOutputFileSystem = require("./FtpOutputFileSystem");
+const SftpOutputFileSystem = require("./SftpOutputFileSystem");
 
-function SftpOutputPlugin(options) {
-  if (!options) {
-    const i = process.argv.indexOf('--ftp')
-    if (!~i)
-      return console.warn('you must set --ftp option when you use ftp-output-webpack-plugin!')
-    options = process.argv[i + 1]
-    options = url.parse(options)
-    const auth = options.auth.split(':')
-    options.username = auth[0]
-    options.password = auth[1]
-    options = {
-      host: options.hostname,
-      port: options.port,
-      username: options.username,
-      password: options.password,
-      keepaliveInterval: 5000
+function FtpOutputPlugin(options) {
+  this.options = options || {};
+  const ftpFlagIndex = process.argv.indexOf("--ftp");
+
+  if (!this.options.protocol) this.options.protocol = "ftp";
+
+  if (~ftpFlagIndex) {
+    const cliOptions = url.parse(process.argv[ftpFlagIndex + 1]);
+    const auth = cliOptions.auth.split(":");
+
+    cliOptions.protocol = cliOptions.protocol.slice(
+      0,
+      cliOptions.protocol.length - 1
+    );
+    cliOptions.username = auth[0];
+    cliOptions.password = auth[1];
+
+    if (cliOptions.protocol === "ftp") {
+      this.options = Object.assign(this.options, {
+        path: cliOptions.path,
+        protocol: cliOptions.protocol,
+        host: cliOptions.hostname,
+        port: cliOptions.port || 21,
+        user: cliOptions.username,
+        password: cliOptions.password,
+      });
+    } else if (cliOptions.protocol === "sftp") {
+      this.options = Object.assign(this.options, {
+        path: cliOptions.path,
+        protocol: cliOptions.protocol,
+        host: cliOptions.hostname,
+        port: cliOptions.port || 22,
+        username: cliOptions.username,
+        password: cliOptions.password,
+      });
     }
   }
-  this.options = options
 }
 
-SftpOutputPlugin.prototype.apply = function(compiler) {
-  if (!this.options) return
-  compiler.plugin('environment', () => {
-    compiler.outputFileSystem = new SftpOutputFileSystem(this.options)
-  })
-  compiler.plugin('done', () => {
-    compiler.outputFileSystem.client.end()
-  })
-}
+FtpOutputPlugin.prototype.apply = function (compiler) {
+  if (!this.options.path) {
+    // for backward compatibility
+    this.options.path = compiler.options.output.path;
+    this.options._useLocalPath = true;
+  }
 
-module.exports = SftpOutputPlugin
+  compiler.plugin("environment", () => {
+    if (this.options.protocol === "ftp") {
+      compiler.outputFileSystem = new FtpOutputFileSystem(
+        this.options,
+        compiler
+      );
+    } else if (this.options.protocol === "sftp") {
+      compiler.outputFileSystem = new SftpOutputFileSystem(
+        this.options,
+        compiler
+      );
+    }
+  });
+
+  if (!compiler.options.watch) {
+    compiler.plugin("done", () => {
+      compiler.outputFileSystem.client &&
+        compiler.outputFileSystem.client.end();
+    });
+  }
+};
+
+module.exports = FtpOutputPlugin;
